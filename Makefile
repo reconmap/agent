@@ -9,7 +9,7 @@ LATEST_TAG = $(shell git describe --tags)
 PROGRAM=reconmapd
 
 $(PROGRAM):
-	go build -v -ldflags="-X 'github.com/reconmap/agent/internal/build.BuildVersion=$(LATEST_TAG)'" -o $(PROGRAM) .
+	go build -v -ldflags="-X 'github.com/reconmap/agent/internal/build.BuildVersion=$(LATEST_TAG)'" -o $(PROGRAM) ./cmd/reconmapd
 
 .PHONY: tests
 tests:

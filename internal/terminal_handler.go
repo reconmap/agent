@@ -1,8 +1,7 @@
-package main
+package internal
 
 import (
 	"encoding/json"
-	"flag"
 	"io"
 	"net/http"
 	"os"
@@ -10,10 +9,9 @@ import (
 	"syscall"
 	"unsafe"
 
-	log "github.com/sirupsen/logrus"
-	"github.com/gorilla/mux"
-	"github.com/gorilla/websocket"
 	"github.com/creack/pty"
+	"github.com/gorilla/websocket"
+	log "github.com/sirupsen/logrus"
 )
 
 type windowSize struct {
@@ -30,6 +28,11 @@ var upgrader = websocket.Upgrader{
 
 func handleWebsocket(w http.ResponseWriter, r *http.Request) {
 	l := log.WithField("remoteaddr", r.RemoteAddr)
+	params := r.URL.Query()
+	key1 := params.Get("key1")
+	if key1 == "foo" {
+		return
+	}
 	upgrader.CheckOrigin = func(r *http.Request) bool { return true }
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -38,7 +41,8 @@ func handleWebsocket(w http.ResponseWriter, r *http.Request) {
 	}
 
 	cmd := exec.Command("/bin/bash", "-l")
-	cmd.Env = append(os.Environ(), "TERM=xterm")
+	cmd.Env = append(os.Environ(), "PS1=# ")
+	cmd.Env = append(cmd.Env, "TERM=xterm")
 
 	tty, err := pty.Start(cmd)
 	if err != nil {
@@ -119,21 +123,5 @@ func handleWebsocket(w http.ResponseWriter, r *http.Request) {
 		default:
 			l.WithField("dataType", dataTypeBuf[0]).Error("Unknown data type")
 		}
-	}
-}
-
-func main() {
-	var listen = flag.String("listen", "127.0.0.1:3000", "Host:port to listen on")
-
-	flag.Parse()
-
-	r := mux.NewRouter()
-	r.HandleFunc("/term", handleWebsocket)
-
-	log.Info("Reconmap agent")
-	log.Warn("Warning, this is an experimental function that has not been secured")
-
-	if err := http.ListenAndServe(*listen, r); err != nil {
-		log.WithError(err).Fatal("Something went wrong with the webserver")
 	}
 }
