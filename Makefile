@@ -6,6 +6,8 @@ MAKEFLAGS += --warn-undefined-variables
 MAKEFLAGS += --no-builtin-rules
 LATEST_TAG = $(shell git describe --tags)
 
+CONTAINER_NAME=quay.io/reconmap/agent:latest
+
 PROGRAM=reconmapd
 
 $(PROGRAM):
@@ -18,4 +20,12 @@ tests:
 .PHONY: clean
 clean:
 	rm -f $(PROGRAM)
+
+.PHONY: docker-build
+docker-build:
+	docker build -t $(CONTAINER_NAME) .
+
+.PHONY: docker-push
+docker-push:
+	docker push $(CONTAINER_NAME)
 
