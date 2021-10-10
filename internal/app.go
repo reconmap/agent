@@ -12,29 +12,36 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// App contains properties needed for agent
+// to connect to redis and http router.
 type App struct {
 	redisConn *redis.Client
 	muxRouter *mux.Router
 }
 
-func (app *App) Initialize() {
+func NewApp() App {
 	redisHost := os.Getenv("REDIS_HOST")
 	redisPort := os.Getenv("REDIS_PORT")
 	ctx := context.Background()
-	app.redisConn = redis.NewClient(&redis.Options{
+
+	redisConn := redis.NewClient(&redis.Options{
 		Addr:     fmt.Sprintf("%s:%s", redisHost, redisPort),
 		Password: os.Getenv("REDIS_PASSWORD"),
 		DB:       0,
 	})
-	if _, err := app.redisConn.Ping(ctx).Result(); err != nil {
+
+	if _, err := redisConn.Ping(ctx).Result(); err != nil {
 		panic(err)
 	}
 
-	app.muxRouter = mux.NewRouter()
-	app.muxRouter.HandleFunc("/term", handleWebsocket)
-	app.muxRouter.HandleFunc("/notifications", handleNotifications)
+	muxRouter := mux.NewRouter()
+	muxRouter.HandleFunc("/term", handleWebsocket)
+	muxRouter.HandleFunc("/notifications", handleNotifications)
 
-	log.SetLevel(log.DebugLevel)
+	return App{
+		redisConn: redisConn,
+		muxRouter: muxRouter,
+	}
 }
 
 func (app *App) Run() {
