@@ -19,6 +19,7 @@ type App struct {
 	muxRouter *mux.Router
 }
 
+// NewApp returns a App struct that has intialized a redis client and http router.
 func NewApp() App {
 	redisHost := os.Getenv("REDIS_HOST")
 	redisPort := os.Getenv("REDIS_PORT")
@@ -44,6 +45,7 @@ func NewApp() App {
 	}
 }
 
+// Run starts the agent.
 func (app *App) Run() {
 	log.Info("Reconmap agent")
 	log.Warn("Warning, this is an experimental function that has not been secured")
