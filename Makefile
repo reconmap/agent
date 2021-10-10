@@ -29,3 +29,6 @@ docker-build:
 docker-push:
 	docker push $(CONTAINER_NAME)
 
+.PHONY: lint
+lint:
+	golangci-lint run --config .golangci.yml --sort-results --fix --verbose

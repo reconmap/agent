@@ -17,10 +17,10 @@ type App struct {
 	muxRouter *mux.Router
 }
 
-func (app *App) Initialise() {
+func (app *App) Initialize() {
 	redisHost := os.Getenv("REDIS_HOST")
 	redisPort := os.Getenv("REDIS_PORT")
-	ctx :=  context.Background()
+	ctx := context.Background()
 	app.redisConn = redis.NewClient(&redis.Options{
 		Addr:     fmt.Sprintf("%s:%s", redisHost, redisPort),
 		Password: os.Getenv("REDIS_PASSWORD"),
@@ -41,7 +41,7 @@ func (app *App) Run() {
 	log.Info("Reconmap agent")
 	log.Warn("Warning, this is an experimental function that has not been secured")
 
-	var listen = flag.String("listen", ":2020", "Host:port to listen on")
+	listen := flag.String("listen", ":2020", "Host:port to listen on")
 	flag.Parse()
 
 	go broadcastNotifications(app)

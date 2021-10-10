@@ -18,5 +18,4 @@ func handleNotifications(w http.ResponseWriter, r *http.Request) {
 	upgrader.CheckOrigin = func(r *http.Request) bool { return true }
 	conn, _ := upgrader.Upgrade(w, r, nil)
 	registerClient(conn)
-
 }
