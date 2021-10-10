@@ -1,11 +1,8 @@
 package main
 
 import (
-	"reconmap/agent/internal"
-
-	"reconmap/agent/internal"
-
 	log "github.com/sirupsen/logrus"
+	"reconmap/agent/internal"
 )
 
 func main() {
