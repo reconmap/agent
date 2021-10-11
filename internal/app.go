@@ -12,36 +12,45 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// App contains properties needed for agent
+// to connect to redis and http router.
 type App struct {
 	redisConn *redis.Client
 	muxRouter *mux.Router
 }
 
-func (app *App) Initialise() {
+// NewApp returns a App struct that has intialized a redis client and http router.
+func NewApp() App {
 	redisHost := os.Getenv("REDIS_HOST")
 	redisPort := os.Getenv("REDIS_PORT")
-	ctx :=  context.Background()
-	app.redisConn = redis.NewClient(&redis.Options{
+	ctx := context.Background()
+
+	redisConn := redis.NewClient(&redis.Options{
 		Addr:     fmt.Sprintf("%s:%s", redisHost, redisPort),
 		Password: os.Getenv("REDIS_PASSWORD"),
 		DB:       0,
 	})
-	if _, err := app.redisConn.Ping(ctx).Result(); err != nil {
+
+	if _, err := redisConn.Ping(ctx).Result(); err != nil {
 		panic(err)
 	}
 
-	app.muxRouter = mux.NewRouter()
-	app.muxRouter.HandleFunc("/term", handleWebsocket)
-	app.muxRouter.HandleFunc("/notifications", handleNotifications)
+	muxRouter := mux.NewRouter()
+	muxRouter.HandleFunc("/term", handleWebsocket)
+	muxRouter.HandleFunc("/notifications", handleNotifications)
 
-	log.SetLevel(log.DebugLevel)
+	return App{
+		redisConn: redisConn,
+		muxRouter: muxRouter,
+	}
 }
 
+// Run starts the agent.
 func (app *App) Run() {
 	log.Info("Reconmap agent")
 	log.Warn("Warning, this is an experimental function that has not been secured")
 
-	var listen = flag.String("listen", ":2020", "Host:port to listen on")
+	listen := flag.String("listen", ":2020", "Host:port to listen on")
 	flag.Parse()
 
 	go broadcastNotifications(app)

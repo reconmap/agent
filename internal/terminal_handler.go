@@ -14,6 +14,10 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+const (
+	bufferSizeBytes = 1024
+)
+
 type windowSize struct {
 	Rows uint16 `json:"rows"`
 	Cols uint16 `json:"cols"`
@@ -22,15 +26,18 @@ type windowSize struct {
 }
 
 var upgrader = websocket.Upgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
+	ReadBufferSize:  bufferSizeBytes,
+	WriteBufferSize: bufferSizeBytes,
 }
 
+// #nosec G103
+// getString converts byte slice to a string without memory allocation.
+// See https://groups.google.com/forum/#!msg/Golang-Nuts/ENgbUzYvCuU/90yGx7GUAgAJ
 func handleWebsocket(w http.ResponseWriter, r *http.Request) {
 	l := log.WithField("remoteaddr", r.RemoteAddr)
 	params := r.URL.Query()
-	key1 := params.Get("key1")
-	if key1 == "foo" {
+
+	if key1 := params.Get("key1"); key1 == "foo" {
 		return
 	}
 	upgrader.CheckOrigin = func(r *http.Request) bool { return true }
@@ -59,7 +66,7 @@ func handleWebsocket(w http.ResponseWriter, r *http.Request) {
 
 	go func() {
 		for {
-			buf := make([]byte, 1024)
+			buf := make([]byte, bufferSizeBytes)
 			read, err := tty.Read(buf)
 			if err != nil {
 				conn.WriteMessage(websocket.TextMessage, []byte(err.Error()))
@@ -118,7 +125,7 @@ func handleWebsocket(w http.ResponseWriter, r *http.Request) {
 				uintptr(unsafe.Pointer(&resizeMessage)),
 			)
 			if errno != 0 {
-				l.WithError(syscall.Errno(errno)).Error("Unable to resize terminal")
+				l.WithError(errno).Error("Unable to resize terminal")
 			}
 		default:
 			l.WithField("dataType", dataTypeBuf[0]).Error("Unknown data type")

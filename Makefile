@@ -29,3 +29,11 @@ docker-build:
 docker-push:
 	docker push $(CONTAINER_NAME)
 
+.PHONY: lint
+lint: GOLANGCI_LINT_VERSION ?= 1.42.1
+lint:
+	docker run \
+	-v $(CURDIR):/reconmap/agent \
+	-w /reconmap/agent \
+	golangci/golangci-lint:v$(GOLANGCI_LINT_VERSION)-alpine \
+	golangci-lint run -c .golangci.yml --timeout 10m --fix

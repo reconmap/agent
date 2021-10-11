@@ -12,7 +12,8 @@ func broadcast(message string) {
 
 	for _, client := range clients {
 		log.Debug("-> " + client.RemoteAddr().String())
-		client.WriteMessage(websocket.TextMessage, []byte(message))
+		err := client.WriteMessage(websocket.TextMessage, []byte(message))
+		log.Error(err)
 	}
 }
 
