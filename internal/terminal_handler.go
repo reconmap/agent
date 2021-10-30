@@ -30,6 +30,20 @@ var upgrader = websocket.Upgrader{
 	WriteBufferSize: bufferSizeBytes,
 }
 
+func tryWriteMessage(conn *websocket.Conn, messageType int, data []byte) {
+	if err := conn.WriteMessage(messageType, data); err != nil {
+		log.WithError(err).Error("Unable to write message")
+	}
+}
+
+func tryWriteTextMessage(conn *websocket.Conn, str string) {
+	tryWriteMessage(conn, websocket.TextMessage, []byte(str))
+}
+
+func tryWriteBinaryMessage(conn *websocket.Conn, data []byte) {
+	tryWriteMessage(conn, websocket.BinaryMessage, data)
+}
+
 // #nosec G103
 // getString converts byte slice to a string without memory allocation.
 // See https://groups.google.com/forum/#!msg/Golang-Nuts/ENgbUzYvCuU/90yGx7GUAgAJ
@@ -54,14 +68,23 @@ func handleWebsocket(w http.ResponseWriter, r *http.Request) {
 	tty, err := pty.Start(cmd)
 	if err != nil {
 		l.WithError(err).Error("Unable to start pty/cmd")
-		conn.WriteMessage(websocket.TextMessage, []byte(err.Error()))
+		tryWriteTextMessage(conn, err.Error())
 		return
 	}
 	defer func() {
-		cmd.Process.Kill()
-		cmd.Process.Wait()
-		tty.Close()
-		conn.Close()
+		var err error
+		if err = cmd.Process.Kill(); err != nil {
+			l.WithError(err).Error("Couldn't kill process")
+		}
+		if _, err = cmd.Process.Wait(); err != nil {
+			l.WithError(err).Error("Couldn't wait for process")
+		}
+		if err = tty.Close(); err != nil {
+			l.WithError(err).Error("Couldn't close tty")
+		}
+		if err = conn.Close(); err != nil {
+			l.WithError(err).Error("Couldn't close connection")
+		}
 	}()
 
 	go func() {
@@ -69,11 +92,10 @@ func handleWebsocket(w http.ResponseWriter, r *http.Request) {
 			buf := make([]byte, bufferSizeBytes)
 			read, err := tty.Read(buf)
 			if err != nil {
-				conn.WriteMessage(websocket.TextMessage, []byte(err.Error()))
-				l.WithError(err).Error("Unable to read from pty/cmd")
+				tryWriteTextMessage(conn, err.Error())
 				return
 			}
-			conn.WriteMessage(websocket.BinaryMessage, buf[:read])
+			tryWriteBinaryMessage(conn, buf[:read])
 		}
 	}()
 
@@ -86,7 +108,7 @@ func handleWebsocket(w http.ResponseWriter, r *http.Request) {
 
 		if messageType == websocket.TextMessage {
 			l.Warn("Unexpected text message")
-			conn.WriteMessage(websocket.TextMessage, []byte("Unexpected text message"))
+			tryWriteTextMessage(conn, "Unexpected text message")
 			continue
 		}
 
@@ -94,7 +116,7 @@ func handleWebsocket(w http.ResponseWriter, r *http.Request) {
 		read, err := reader.Read(dataTypeBuf)
 		if err != nil {
 			l.WithError(err).Error("Unable to read message type from reader")
-			conn.WriteMessage(websocket.TextMessage, []byte("Unable to read message type from reader"))
+			tryWriteTextMessage(conn, "Unable to read message type from reader")
 			return
 		}
 
@@ -114,7 +136,7 @@ func handleWebsocket(w http.ResponseWriter, r *http.Request) {
 			resizeMessage := windowSize{}
 			err := decoder.Decode(&resizeMessage)
 			if err != nil {
-				conn.WriteMessage(websocket.TextMessage, []byte("Error decoding resize message: "+err.Error()))
+				tryWriteTextMessage(conn, "Error decoding resize message: "+err.Error())
 				continue
 			}
 			log.WithField("resizeMessage", resizeMessage).Info("Resizing terminal")
