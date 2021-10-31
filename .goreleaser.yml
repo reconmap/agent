@@ -27,14 +27,14 @@ builds:
       - -X github.com/reconmap/reconmapd/internal/build.BuildVersion={{.Version}}
       - -X github.com/reconmap/reconmapd/internal/build.BuildTime={{.CommitDate}}
       - -X github.com/reconmap/reconmapd/internal/build.BuildCommit={{.Commit}}
-    mod_timestamp: '{{ .CommitTimestamp }}'
+    mod_timestamp: "{{ .CommitTimestamp }}"
     flags:
-    - -trimpath
+      - -trimpath
 
 brews:
   - name: reconmapd
-    homepage: 'https://github.com/reconmap/agent'
-    description: 'The Reconmap agent allows clients to launch commands remotely, open interactive browser terminals, and receive push notifications.'
+    homepage: "https://github.com/reconmap/agent"
+    description: "Reconmapd: The Reconmap agent allows clients to launch commands remotely, open interactive browser terminals, and receive push notifications."
     folder: Formula
     license: "GPL-3.0"
     commit_author:
@@ -55,8 +55,8 @@ archives:
       386: i386
       amd64: x86_64
     format_overrides:
-    - goos: windows
-      format: zip
+      - goos: windows
+        format: zip
 
 checksum:
   name_template: "checksums.txt"
