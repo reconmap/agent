@@ -9,6 +9,7 @@ This is a component of many in the [Reconmap's architecture](https://reconmap.or
 
 - Docker
 - Make
+- Linux/Macos operating system due to dependency on OS dependent syscalls
 
 ## Development requirements 
 
