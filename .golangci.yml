@@ -53,14 +53,14 @@ linters:
 
 linters-settings:
   cyclop:
-    max-complexity: 10
+    max-complexity: 15
     package-average: 0.0
     skip-tests: false
   errcheck:
     check-type-assertions: true
     check-blank: true
   gocognit:
-    min-complexity: 10
+    min-complexity: 15
   goconst:
     min-len: 3
     min-occurrences: 3

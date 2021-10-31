@@ -44,9 +44,6 @@ func tryWriteBinaryMessage(conn *websocket.Conn, data []byte) {
 	tryWriteMessage(conn, websocket.BinaryMessage, data)
 }
 
-// #nosec G103
-// getString converts byte slice to a string without memory allocation.
-// See https://groups.google.com/forum/#!msg/Golang-Nuts/ENgbUzYvCuU/90yGx7GUAgAJ
 func handleWebsocket(w http.ResponseWriter, r *http.Request) {
 	l := log.WithField("remoteaddr", r.RemoteAddr)
 	params := r.URL.Query()
@@ -65,7 +62,7 @@ func handleWebsocket(w http.ResponseWriter, r *http.Request) {
 	cmd.Env = append(os.Environ(), "PS1=# ")
 	cmd.Env = append(cmd.Env, "TERM=xterm")
 
-	tty, err := pty.Start(cmd)
+	ttyFile, err := pty.Start(cmd)
 	if err != nil {
 		l.WithError(err).Error("Unable to start pty/cmd")
 		tryWriteTextMessage(conn, err.Error())
@@ -79,7 +76,7 @@ func handleWebsocket(w http.ResponseWriter, r *http.Request) {
 		if _, err = cmd.Process.Wait(); err != nil {
 			l.WithError(err).Error("Couldn't wait for process")
 		}
-		if err = tty.Close(); err != nil {
+		if err = ttyFile.Close(); err != nil {
 			l.WithError(err).Error("Couldn't close tty")
 		}
 		if err = conn.Close(); err != nil {
@@ -87,70 +84,88 @@ func handleWebsocket(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
-	go func() {
-		for {
-			buf := make([]byte, bufferSizeBytes)
-			read, err := tty.Read(buf)
-			if err != nil {
-				tryWriteTextMessage(conn, err.Error())
-				return
-			}
-			tryWriteBinaryMessage(conn, buf[:read])
-		}
-	}()
+	go sendTtyBuffer(ttyFile, conn)
 
 	for {
-		messageType, reader, err := conn.NextReader()
+		receiveWsBuffer(l, conn, ttyFile)
+	}
+}
+
+func sendTtyBuffer(ttyFile *os.File, conn *websocket.Conn) {
+	for {
+		buf := make([]byte, bufferSizeBytes)
+		read, err := ttyFile.Read(buf)
 		if err != nil {
-			l.WithError(err).Error("Unable to grab next reader")
+			tryWriteTextMessage(conn, err.Error())
 			return
 		}
+		tryWriteBinaryMessage(conn, buf[:read])
+	}
+}
 
-		if messageType == websocket.TextMessage {
-			l.Warn("Unexpected text message")
-			tryWriteTextMessage(conn, "Unexpected text message")
-			continue
-		}
+func receiveWsBuffer(l *log.Entry, conn *websocket.Conn, ttyFile *os.File) {
+	messageType, reader, err := conn.NextReader()
+	if err != nil {
+		l.WithError(err).Error("Unable to grab next reader")
+		return
+	}
 
-		dataTypeBuf := make([]byte, 1)
-		read, err := reader.Read(dataTypeBuf)
+	if messageType == websocket.TextMessage {
+		l.Warn("Unexpected text message")
+		tryWriteTextMessage(conn, "Unexpected text message")
+		return
+	}
+
+	dataTypeBuf := make([]byte, 1)
+	read, err := reader.Read(dataTypeBuf)
+	if err != nil {
+		l.WithError(err).Error("Unable to read message type from reader")
+		tryWriteTextMessage(conn, "Unable to read message type from reader")
+		return
+	}
+
+	if read != 1 {
+		l.WithField("bytes", read).Error("Unexpected number of bytes read")
+		return
+	}
+
+	switch dataTypeBuf[0] {
+	case 0:
+		bytesWritten, err := io.Copy(ttyFile, reader)
 		if err != nil {
-			l.WithError(err).Error("Unable to read message type from reader")
-			tryWriteTextMessage(conn, "Unable to read message type from reader")
+			l.WithError(err).Errorf("Error after copying %d bytes", bytesWritten)
+		}
+	case 1:
+		winSize, err := tryDecodeWindowSize(reader)
+		if err != nil {
+			tryWriteTextMessage(conn, "Error decoding resize message: "+err.Error())
 			return
 		}
+		resizeTerminal(l, winSize, ttyFile)
+	default:
+		l.WithField("dataType", dataTypeBuf[0]).Error("Unknown data type")
+	}
+}
 
-		if read != 1 {
-			l.WithField("bytes", read).Error("Unexpected number of bytes read")
-			return
-		}
+func tryDecodeWindowSize(reader io.Reader) (windowSize, error) {
+	winSize := windowSize{}
+	decoder := json.NewDecoder(reader)
+	err := decoder.Decode(&winSize)
+	return winSize, err
+}
 
-		switch dataTypeBuf[0] {
-		case 0:
-			copied, err := io.Copy(tty, reader)
-			if err != nil {
-				l.WithError(err).Errorf("Error after copying %d bytes", copied)
-			}
-		case 1:
-			decoder := json.NewDecoder(reader)
-			resizeMessage := windowSize{}
-			err := decoder.Decode(&resizeMessage)
-			if err != nil {
-				tryWriteTextMessage(conn, "Error decoding resize message: "+err.Error())
-				continue
-			}
-			log.WithField("resizeMessage", resizeMessage).Info("Resizing terminal")
-			_, _, errno := syscall.Syscall(
-				syscall.SYS_IOCTL,
-				tty.Fd(),
-				syscall.TIOCSWINSZ,
-				uintptr(unsafe.Pointer(&resizeMessage)),
-			)
-			if errno != 0 {
-				l.WithError(errno).Error("Unable to resize terminal")
-			}
-		default:
-			l.WithField("dataType", dataTypeBuf[0]).Error("Unknown data type")
-		}
+// #nosec G103
+// getString converts byte slice to a string without memory allocation.
+// See https://groups.google.com/forum/#!msg/Golang-Nuts/ENgbUzYvCuU/90yGx7GUAgAJ
+func resizeTerminal(l *log.Entry, winSize windowSize, ttyFile *os.File) {
+	log.WithField("resizeMessage", winSize).Info("Resizing terminal")
+	_, _, errno := syscall.Syscall(
+		syscall.SYS_IOCTL,
+		ttyFile.Fd(),
+		syscall.TIOCSWINSZ,
+		uintptr(unsafe.Pointer(&winSize)),
+	)
+	if errno != 0 {
+		l.WithError(errno).Error("Unable to resize terminal")
 	}
 }
