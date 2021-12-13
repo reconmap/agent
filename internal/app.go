@@ -2,6 +2,7 @@ package internal
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"net/http"
@@ -21,6 +22,16 @@ type App struct {
 
 // NewApp returns a App struct that has intialized a redis client and http router.
 func NewApp() App {
+	muxRouter := mux.NewRouter()
+	muxRouter.HandleFunc("/term", handleWebsocket)
+	muxRouter.HandleFunc("/notifications", handleNotifications)
+
+	return App{
+		muxRouter: muxRouter,
+	}
+}
+
+func (app *App) connectRedis() *error {
 	redisHost := os.Getenv("REDIS_HOST")
 	redisPort := os.Getenv("REDIS_PORT")
 	ctx := context.Background()
@@ -32,30 +43,33 @@ func NewApp() App {
 	})
 
 	if _, err := redisConn.Ping(ctx).Result(); err != nil {
-		panic(err)
+		return &err
 	}
 
-	muxRouter := mux.NewRouter()
-	muxRouter.HandleFunc("/term", handleWebsocket)
-	muxRouter.HandleFunc("/notifications", handleNotifications)
+	app.redisConn = redisConn
 
-	return App{
-		redisConn: redisConn,
-		muxRouter: muxRouter,
-	}
+	return nil
 }
 
 // Run starts the agent.
-func (app *App) Run() {
+func (app *App) Run() *error {
 	log.Info("Reconmap agent")
 	log.Warn("Warning, this is an experimental function that has not been secured")
 
 	listen := flag.String("listen", ":2020", "Host:port to listen on")
 	flag.Parse()
 
+	err := app.connectRedis()
+	if err != nil {
+		error_formatted := errors.New(fmt.Sprintf("Unable to connect to redis (%v)", *err))
+		return &error_formatted
+	}
+
 	go broadcastNotifications(app)
 
 	if err := http.ListenAndServe(*listen, app.muxRouter); err != nil {
 		log.WithError(err).Fatal("Something went wrong with the webserver")
 	}
+
+	return nil
 }

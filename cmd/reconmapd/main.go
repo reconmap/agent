@@ -10,5 +10,7 @@ func main() {
 	log.SetLevel(log.DebugLevel)
 
 	app := internal.NewApp()
-	app.Run()
+	if err := app.Run(); err != nil {
+		log.Error(*err)
+	}
 }
