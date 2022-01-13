@@ -15,7 +15,7 @@ WORKDIR /app
 
 COPY --from=builder /build/reconmapd /app/reconmapd
 
-EXPOSE 2020
+EXPOSE 5520
 
 CMD ["/app/reconmapd"]
 

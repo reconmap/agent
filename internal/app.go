@@ -56,7 +56,7 @@ func (app *App) Run() *error {
 	log.Info("Reconmap agent")
 	log.Warn("Warning, this is an experimental function that has not been secured")
 
-	listen := flag.String("listen", ":2020", "Host:port to listen on")
+	listen := flag.String("listen", ":5520", "Host:port to listen on")
 	flag.Parse()
 
 	err := app.connectRedis()
