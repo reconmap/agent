@@ -2,7 +2,6 @@ package internal
 
 import (
 	"context"
-	"errors"
 	"flag"
 	"fmt"
 	"net/http"
@@ -61,8 +60,8 @@ func (app *App) Run() *error {
 
 	err := app.connectRedis()
 	if err != nil {
-		error_formatted := errors.New(fmt.Sprintf("Unable to connect to redis (%v)", *err))
-		return &error_formatted
+		errorFormatted := fmt.Errorf("Unable to connect to redis (%v)", *err)
+		return &errorFormatted
 	}
 
 	go broadcastNotifications(app)
