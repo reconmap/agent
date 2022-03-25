@@ -11,7 +11,12 @@ This is a component of many in the [Reconmap's architecture](https://reconmap.or
 - Make
 - Linux/Macos operating system due to dependency on OS dependent syscalls
 
+## How to run
+
+```shell
+JWT_SECRET="One long key of your own" REDIS_HOST=localhost REDIS_PORT=6379 REDIS_PASSWORD=REconDIS ./reconmapd
+```
+
 ## Development requirements 
 
 - Golang
-
