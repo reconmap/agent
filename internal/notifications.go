@@ -4,7 +4,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/go-redis/redis/v8"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -17,7 +16,7 @@ func broadcastNotifications(app *App) {
 		log.Debug("searching for notifications...")
 		ctx := context.Background()
 		result, err := app.redisConn.BRPop(ctx, redisTimeout, "notifications:queue").Result()
-		if err != redis.Nil {
+		if err != nil {
 			log.Error(err)
 		} else if result != nil {
 			broadcast(result[1])

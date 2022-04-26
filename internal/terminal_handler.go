@@ -2,7 +2,6 @@ package internal
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -11,7 +10,6 @@ import (
 	"unsafe"
 
 	"github.com/creack/pty"
-	"github.com/golang-jwt/jwt"
 	"github.com/gorilla/websocket"
 	log "github.com/sirupsen/logrus"
 )
@@ -47,39 +45,21 @@ func tryWriteBinaryMessage(conn *websocket.Conn, data []byte) {
 }
 
 func handleWebsocket(w http.ResponseWriter, r *http.Request) {
-	l := log.WithField("remoteaddr", r.RemoteAddr)
-	params := r.URL.Query()
-
-	if !params.Has("token") {
-		l.Error("Missing token")
-		return
-	} else {
-		tokenParam := params.Get("token")
-		token, err := jwt.Parse(tokenParam, func(token *jwt.Token) (interface{}, error) {
-			if token.Method.Alg() != jwt.SigningMethodHS256.Alg() {
-				return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
-			}
-
-			return []byte(os.Getenv("JWT_SECRET")), nil
-		})
-		if !token.Valid {
-			l.WithError(err).Error("Token is invalid")
-			return
-		}
-
-		if claims, ok := token.Claims.(jwt.MapClaims); ok {
-			fmt.Println(claims["aud"], claims["iss"])
-		} else {
-			l.Error("Unable to parse claims")
-		}
-	}
-
-	upgrader.CheckOrigin = func(r *http.Request) bool { return true }
-	conn, err := upgrader.Upgrade(w, r, nil)
+	err := CheckRequestToken(r)
 	if err != nil {
-		l.WithError(err).Error("Unable to upgrade connection")
+		log.Error(err)
 		return
 	}
+
+	conn, err := UpgradeRequest(w, r)
+	if err != nil {
+		log.Error(err)
+		return
+	}
+
+	l := log.WithField("remoteaddr", r.RemoteAddr)
+
+	params := r.URL.Query()
 
 	cmd := exec.Command("/bin/bash", "-l")
 	cmd.Env = append(os.Environ(), "PS1=# ")

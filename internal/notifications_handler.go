@@ -9,11 +9,16 @@ import (
 func handleNotifications(w http.ResponseWriter, r *http.Request) {
 	log.Debug("handling notification request")
 
-	upgrader.CheckOrigin = func(r *http.Request) bool { return true }
-
-	conn, err := upgrader.Upgrade(w, r, nil)
+	err := CheckRequestToken(r)
 	if err != nil {
 		log.Error(err)
+		return
+	}
+
+	conn, err := UpgradeRequest(w, r)
+	if err != nil {
+		log.Error(err)
+		return
 	}
 
 	registerClient(conn)
