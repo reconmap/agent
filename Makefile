@@ -30,7 +30,7 @@ docker-push:
 	docker push $(CONTAINER_NAME)
 
 .PHONY: lint
-lint: GOLANGCI_LINT_VERSION ?= 1.42.1
+lint: GOLANGCI_LINT_VERSION ?= 1.49
 lint:
 	docker run \
 	-v $(CURDIR):/reconmap/agent \
