@@ -1,13 +1,25 @@
 package internal
 
 import (
+	"crypto/rsa"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
-	"os"
 
 	"github.com/golang-jwt/jwt"
 )
+
+var rsakeys map[string]*rsa.PublicKey
+
+func GetPublicKeys() string {
+	rsakeys = make(map[string]*rsa.PublicKey)
+	var body map[string]string
+	uri := "http://localhost:8080/realms/reconmap"
+	resp, _ := http.Get(uri)
+	json.NewDecoder(resp.Body).Decode(&body)
+	return body["public_key"]
+}
 
 func CheckRequestToken(r *http.Request) error {
 	params := r.URL.Query()
@@ -16,12 +28,19 @@ func CheckRequestToken(r *http.Request) error {
 		return errors.New("Missing \"token\" parameter")
 	} else {
 		tokenParam := params.Get("token")
-		token, err := jwt.Parse(tokenParam, func(token *jwt.Token) (interface{}, error) {
-			if token.Method.Alg() != jwt.SigningMethodHS256.Alg() {
-				return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
+		pubkey := "-----BEGIN PUBLIC KEY-----\n" + GetPublicKeys() + "\n-----END PUBLIC KEY-----"
+		fmt.Println(pubkey)
+		key, err := jwt.ParseRSAPublicKeyFromPEM([]byte(pubkey))
+		if err != nil {
+			fmt.Errorf("validate: parse key: %w", err)
+		}
+
+		token, err := jwt.Parse(tokenParam, func(jwtToken *jwt.Token) (interface{}, error) {
+			if _, ok := jwtToken.Method.(*jwt.SigningMethodRSA); !ok {
+				return nil, fmt.Errorf("unexpected method: %s", jwtToken.Header["alg"])
 			}
 
-			return []byte(os.Getenv("JWT_SECRET")), nil
+			return key, nil
 		})
 		if !token.Valid {
 			return err
