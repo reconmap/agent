@@ -37,7 +37,7 @@ func (app *App) Run() *error {
 
 	err := app.connectRedis()
 	if err != nil {
-		errorFormatted := fmt.Errorf("Unable to connect to redis (%v)", *err)
+		errorFormatted := fmt.Errorf("Unable to connect to redis (%w)", *err)
 		return &errorFormatted
 	}
 

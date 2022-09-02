@@ -25,7 +25,7 @@ func CheckRequestToken(r *http.Request) error {
 	params := r.URL.Query()
 
 	if !params.Has("token") {
-		return errors.New("Missing \"token\" parameter")
+		return errors.New("missing \"token\" parameter")
 	} else {
 		tokenParam := params.Get("token")
 		pubkey := "-----BEGIN PUBLIC KEY-----\n" + GetPublicKeys() + "\n-----END PUBLIC KEY-----"
