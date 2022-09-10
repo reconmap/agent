@@ -139,9 +139,9 @@ func (app *App) Run() *error {
 	listen := flag.String("listen", ":5520", "Host:port to listen on")
 	flag.Parse()
 
-	errx := app.connectRedis()
-	if errx != nil {
-		errorFormatted := fmt.Errorf("Unable to connect to redis (%v)", *errx)
+	redisErr := app.connectRedis()
+	if redisErr != nil {
+		errorFormatted := fmt.Errorf("Unable to connect to redis (%w)", *redisErr)
 		return &errorFormatted
 	}
 

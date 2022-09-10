@@ -62,9 +62,10 @@ func handleWebsocket(w http.ResponseWriter, r *http.Request) {
 	params := r.URL.Query()
 
 	cmd := exec.Command("/bin/bash", "-l")
-	cmd.Env = append(os.Environ(), "PS1=# ")
-	cmd.Env = append(cmd.Env, "TERM=xterm")
-	cmd.Env = append(cmd.Env, "RMAP_SESSION_TOKEN="+params.Get("token"))
+	cmd.Env = append(os.Environ(),
+		"PS1=# ",
+		"TERM=xterm",
+		"RMAP_SESSION_TOKEN="+params.Get("token"))
 
 	ttyFile, err := pty.Start(cmd)
 	if err != nil {
