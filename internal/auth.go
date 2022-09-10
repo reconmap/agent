@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 
 	"github.com/golang-jwt/jwt"
 )
@@ -15,7 +16,8 @@ var rsakeys map[string]*rsa.PublicKey
 func GetPublicKeys() string {
 	rsakeys = make(map[string]*rsa.PublicKey)
 	var body map[string]string
-	uri := "http://localhost:8080/realms/reconmap"
+	keycloakHostname, _ := os.LookupEnv("RMAP_KEYCLOAK_HOSTNAME")
+	uri := keycloakHostname + "/realms/reconmap"
 	resp, _ := http.Get(uri)
 	json.NewDecoder(resp.Body).Decode(&body)
 	return body["public_key"]
@@ -29,7 +31,6 @@ func CheckRequestToken(r *http.Request) error {
 	} else {
 		tokenParam := params.Get("token")
 		pubkey := "-----BEGIN PUBLIC KEY-----\n" + GetPublicKeys() + "\n-----END PUBLIC KEY-----"
-		fmt.Println(pubkey)
 		key, err := jwt.ParseRSAPublicKeyFromPEM([]byte(pubkey))
 		if err != nil {
 			fmt.Errorf("validate: parse key: %w", err)
